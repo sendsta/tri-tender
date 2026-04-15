@@ -26,10 +26,10 @@ import {
 import { cn } from '@/lib/utils'
 
 const adminNavItems = [
-  { href: '/leads', label: 'Leads', icon: Users },
-  { href: '/clients', label: 'Clients', icon: Building2 },
-  { href: '/tenders', label: 'All Tenders', icon: FileText },
-  { href: '/jobs', label: 'Job Queue', icon: Cpu },
+  { href: '/admin/leads', label: 'Leads', icon: Users },
+  { href: '/admin/clients', label: 'Clients', icon: Building2 },
+  { href: '/admin/tenders', label: 'All Tenders', icon: FileText },
+  { href: '/admin/jobs', label: 'Job Queue', icon: Cpu },
 ]
 
 export function AdminShell({
@@ -76,19 +76,12 @@ export function AdminShell({
 
           <nav className="flex flex-col gap-1 px-3">
             {adminNavItems.map((item) => {
-              const isActive =
-                (item.href === '/leads' && pathname.startsWith('/leads')) ||
-                (item.href === '/clients' && pathname.startsWith('/clients')) ||
-                (item.href === '/tenders' && pathname === '/tenders') ||
-                (item.href === '/jobs' && pathname.startsWith('/jobs'))
-
-              // In admin context, these are top-level paths handled by the (admin) route group
-              const fullHref = item.href
+              const isActive = pathname.startsWith(item.href)
 
               return (
                 <Link
                   key={item.href}
-                  href={fullHref}
+                  href={item.href}
                   className={cn(
                     'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                     isActive
