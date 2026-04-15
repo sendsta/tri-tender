@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TENDER_PHASES } from '@/lib/biddesk/contracts'
 import { StatusBadge, PaymentBadge } from '@/components/status-badge'
 import { PaymentButton } from '@/components/payment-button'
+import { DownloadButton } from '@/components/download-button'
 import {
   FileText,
   AlertTriangle,
@@ -453,9 +454,7 @@ export default async function TenderDetailPage({
                             </p>
                           </div>
                         </div>
-                        <Button variant="ghost" size="sm" disabled>
-                          <Download className="h-4 w-4" />
-                        </Button>
+                        <DownloadButton fileId={f.id} filename={f.filename} />
                       </div>
                     ))}
                   </div>
