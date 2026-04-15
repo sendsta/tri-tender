@@ -28,6 +28,26 @@ export async function POST(request: NextRequest) {
       return apiError('INVALID_INPUT', 'title, fileName, and storagePath are required', 400)
     }
 
+    // Server-side MIME validation
+    const ALLOWED_MIMES = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/zip',
+      'application/x-zip-compressed',
+    ]
+    if (mimeType && !ALLOWED_MIMES.includes(mimeType)) {
+      return apiError('INVALID_INPUT', 'Unsupported file type. Upload PDF, Word, Excel, or ZIP files.', 400)
+    }
+
+    // Server-side file size validation (50MB)
+    const MAX_SIZE = 50 * 1024 * 1024
+    if (sizeBytes && sizeBytes > MAX_SIZE) {
+      return apiError('INVALID_INPUT', 'File size exceeds 50MB limit', 400)
+    }
+
     const { data: client, error: clientError } = await supabase
       .from('clients')
       .select('activation_status, service_tier, max_queued_tenders')
