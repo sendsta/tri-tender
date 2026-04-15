@@ -1,0 +1,9 @@
+
+fastmcp
+pdfplumber
+openpyxl
+python-docx
+weasyprint
+lxml
+html5lib
+beautifulsoup4
