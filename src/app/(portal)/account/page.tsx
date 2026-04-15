@@ -1,9 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { StatusBadge } from '@/components/status-badge'
+import { PaymentButton } from '@/components/payment-button'
 import {
   User,
   Building2,
@@ -195,11 +195,12 @@ export default async function AccountPage() {
                 <p className="text-xs text-muted-foreground">
                   This amount is credited against your first tender — it is not an additional charge.
                 </p>
-                <Button disabled className="w-full sm:w-auto">
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  Pay {formatCents(client.setup_fee_amount_cents)} Setup Fee
-                </Button>
-                <p className="text-xs text-muted-foreground">Paystack integration coming soon</p>
+                <PaymentButton
+                  endpoint="/api/activation/setup-payment"
+                  amountCents={client.setup_fee_amount_cents}
+                  label={`Pay ${formatCents(client.setup_fee_amount_cents)} Setup Fee`}
+                  fullWidth
+                />
               </div>
             )}
           </CardContent>

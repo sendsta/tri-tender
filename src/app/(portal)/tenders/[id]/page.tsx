@@ -7,6 +7,7 @@ import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TENDER_PHASES } from '@/lib/biddesk/contracts'
 import { StatusBadge, PaymentBadge } from '@/components/status-badge'
+import { PaymentButton } from '@/components/payment-button'
 import {
   FileText,
   AlertTriangle,
@@ -14,7 +15,6 @@ import {
   CheckCircle2,
   Circle,
   Clock,
-  CreditCard,
   Receipt,
   Activity,
   Zap,
@@ -267,17 +267,34 @@ export default async function TenderDetailPage({
 
                 {tender.payment_gate !== 'none' && tender.payment_state !== 'paid' && (
                   <div className="pt-2">
-                    <Button className="w-full sm:w-auto" disabled>
-                      <CreditCard className="mr-2 h-4 w-4" />
-                      {tender.payment_gate === 'full_payment_required'
-                        ? `Pay ${formatCents(quote.price_cents)}`
-                        : tender.payment_gate === 'deposit_required'
-                          ? `Pay Deposit ${formatCents(quote.deposit_cents ?? 0)}`
-                          : tender.payment_gate === 'balance_required'
-                            ? `Pay Balance ${formatCents(quote.balance_cents ?? 0)}`
-                            : 'Make Payment'}
-                    </Button>
-                    <p className="mt-1 text-xs text-muted-foreground">Paystack integration coming soon</p>
+                    <PaymentButton
+                      endpoint={`/api/tenders/${tender.id}/pay`}
+                      amountCents={
+                        tender.payment_gate === 'full_payment_required'
+                          ? quote.price_cents
+                          : tender.payment_gate === 'deposit_required'
+                            ? (quote.deposit_cents ?? Math.round(quote.price_cents * 0.5))
+                            : tender.payment_gate === 'balance_required'
+                              ? (quote.balance_cents ?? Math.round(quote.price_cents * 0.5))
+                              : quote.price_cents
+                      }
+                      label={
+                        tender.payment_gate === 'full_payment_required'
+                          ? `Pay ${formatCents(quote.price_cents)}`
+                          : tender.payment_gate === 'deposit_required'
+                            ? `Pay Deposit ${formatCents(quote.deposit_cents ?? 0)}`
+                            : tender.payment_gate === 'balance_required'
+                              ? `Pay Balance ${formatCents(quote.balance_cents ?? 0)}`
+                              : 'Make Payment'
+                      }
+                      bodyParams={{
+                        paymentKind: tender.payment_gate === 'full_payment_required'
+                          ? 'tender_full'
+                          : tender.payment_gate === 'deposit_required'
+                            ? 'tender_deposit'
+                            : 'tender_balance',
+                      }}
+                    />
                   </div>
                 )}
               </div>

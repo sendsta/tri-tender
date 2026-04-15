@@ -1,15 +1,17 @@
 import { apiError, apiOk } from '@/lib/biddesk/responses'
 import { requirePortalContext } from '@/lib/biddesk/server'
+import { getPaymentAdapter, getDefaultProvider } from '@/lib/payments'
+import type { PaymentProvider } from '@/lib/payments'
 
 export async function POST(request: Request) {
   try {
     const { supabase, user, clientId } = await requirePortalContext()
     const body = await request.json().catch(() => ({}))
-    const returnUrl = body.returnUrl as string | undefined
+    const preferredProvider = (body.provider as PaymentProvider) ?? getDefaultProvider()
 
     const { data: client, error: clientError } = await supabase
       .from('clients')
-      .select('id, activation_status, setup_fee_amount_cents')
+      .select('id, activation_status, setup_fee_amount_cents, contact_email, legal_name')
       .eq('id', clientId)
       .single()
 
@@ -21,6 +23,9 @@ export async function POST(request: Request) {
       return apiError('CONFLICT', 'Setup already completed', 409)
     }
 
+    // Create payment record
+    const reference = `setup_${clientId}_${Date.now()}`
+
     const { data: payment, error: insertError } = await supabase
       .from('setup_payments')
       .insert({
@@ -29,7 +34,8 @@ export async function POST(request: Request) {
         amount_cents: client.setup_fee_amount_cents,
         currency: 'ZAR',
         status: 'pending',
-        payment_provider: 'paystack',
+        payment_provider: preferredProvider,
+        provider_payment_id: reference,
       })
       .select('id, amount_cents, currency')
       .single()
@@ -38,16 +44,40 @@ export async function POST(request: Request) {
       return apiError('INTERNAL_ERROR', 'Failed to create setup payment', 500)
     }
 
-    // TODO: Create Paystack transaction and return real checkout URL
-    const checkoutUrl =
-      returnUrl ??
-      `${process.env.NEXT_PUBLIC_APP_URL}/account/activation?setupPaymentId=${payment.id}`
+    // Initialize with the chosen payment provider
+    const adapter = getPaymentAdapter(preferredProvider)
+    const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/account?payment=success&ref=${reference}`
+    const cancelUrl = `${process.env.NEXT_PUBLIC_APP_URL}/account?payment=cancelled`
+
+    const result = await adapter.initialize({
+      reference,
+      amountCents: client.setup_fee_amount_cents,
+      currency: 'ZAR',
+      email: user.email ?? client.contact_email ?? '',
+      name: client.legal_name,
+      purpose: 'setup_fee',
+      callbackUrl,
+      cancelUrl,
+      metadata: {
+        source: 'setup',
+        clientId,
+        profileId: user.id,
+        setupPaymentId: payment.id,
+      },
+    })
+
+    // Update with provider payment ID
+    await supabase
+      .from('setup_payments')
+      .update({ provider_payment_id: result.providerPaymentId })
+      .eq('id', payment.id)
 
     return apiOk({
       setupPaymentId: payment.id,
       amountCents: payment.amount_cents,
       currency: payment.currency,
-      checkoutUrl,
+      checkoutUrl: result.checkoutUrl,
+      provider: preferredProvider,
     })
   } catch (error) {
     if (error instanceof Error && error.message === 'UNAUTHORIZED') {
@@ -58,6 +88,7 @@ export async function POST(request: Request) {
       return apiError('FORBIDDEN', 'Client membership required', 403)
     }
 
-    return apiError('INTERNAL_ERROR', 'Unexpected error', 500)
+    console.error('Setup payment error:', error)
+    return apiError('INTERNAL_ERROR', 'Payment initialization failed', 500)
   }
 }
