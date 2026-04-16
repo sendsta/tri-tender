@@ -245,7 +245,7 @@ async function processJob(job) {
       await logEvent(job.id, job.tender_id, 'tender_blocked', 'Tender blocked on missing mandatory items')
     } else if (job.phase === 7) {
       // Final phase — mark complete
-      await updateTenderPhase(job.tender_id, 7, 'complete')
+      await updateTenderPhase(job.tender_id, 7, 'completed')
       await logEvent(job.id, job.tender_id, 'tender_complete', 'Tender submission pack ready')
     } else {
       // Try to progress to next phase

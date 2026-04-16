@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { apiError, apiOk } from '@/lib/biddesk/responses'
 import { requirePortalContext } from '@/lib/biddesk/server'
+import { sendTenderReceived } from '@/lib/email'
 
 function derivePriority(deadline?: string | null) {
   if (!deadline) return 10
@@ -105,6 +106,7 @@ export async function POST(request: NextRequest) {
       client_id: clientId,
       file_type: 'input',
       filename: fileName,
+      storage_bucket: 'tender-inputs',
       storage_path: storagePath,
       mime_type: mimeType,
       file_size_bytes: sizeBytes,
@@ -149,6 +151,11 @@ export async function POST(request: NextRequest) {
       message: 'Preflight job created from portal upload',
       meta: { uploadedBy: user.id },
     })
+
+    // Send tender received email
+    if (user.email) {
+      await sendTenderReceived(user.email, title)
+    }
 
     return apiOk(
       {

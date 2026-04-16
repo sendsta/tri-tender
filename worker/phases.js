@@ -70,10 +70,29 @@ async function executePreflight(supabase, job, trosDir, localFilePath) {
     }
   }
 
+  // Check for setup fee credit to apply
+  const { data: clientData } = await supabase
+    .from('clients')
+    .select('setup_fee_credit_remaining_cents')
+    .eq('id', job.client_id)
+    .single()
+  const setupCredit = clientData?.setup_fee_credit_remaining_cents ?? 0
+
   // Create a preflight quote
   const pricingMap = { S: 250000, M: 500000, L: 1000000, XL: 2000000 } // cents
-  const priceCents = pricingMap[complexityBand] ?? 500000
+  const basePriceCents = pricingMap[complexityBand] ?? 500000
+  const creditApplied = Math.min(setupCredit, basePriceCents)
+  const priceCents = basePriceCents - creditApplied
   const depositRequired = complexityBand === 'L' || complexityBand === 'XL'
+
+  // Deduct setup credit from client
+  if (creditApplied > 0) {
+    await supabase
+      .from('clients')
+      .update({ setup_fee_credit_remaining_cents: setupCredit - creditApplied })
+      .eq('id', job.client_id)
+    console.log(`[phase:preflight] Applied R${(creditApplied / 100).toFixed(0)} setup credit`)
+  }
 
   const { data: quote, error: quoteError } = await supabase
     .from('tender_quotes')
@@ -82,6 +101,7 @@ async function executePreflight(supabase, job, trosDir, localFilePath) {
       client_id: job.client_id,
       complexity_band: complexityBand,
       price_cents: priceCents,
+      setup_credit_applied_cents: creditApplied,
       deposit_required: depositRequired,
       deposit_cents: depositRequired ? Math.round(priceCents * 0.5) : null,
       balance_cents: depositRequired ? Math.round(priceCents * 0.5) : null,
